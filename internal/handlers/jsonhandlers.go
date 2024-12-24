@@ -2,14 +2,21 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"reflect"
 
+	"go.uber.org/zap"
+
 	"WST_lab1_client/internal/models"
+)
+
+const (
+	username = "root"
+	password = "password"
 )
 
 func AddPersonHandler(url string, name string, surname string, age int, email string, telephone string, logger *zap.Logger) {
@@ -18,7 +25,7 @@ func AddPersonHandler(url string, name string, surname string, age int, email st
 	if err != nil {
 		logger.Fatal("Error marshaling request", zap.Error(err))
 	}
-	body, err := sendRESTRequest(http.MethodPost, url+"/api/v1/persons", requestJSON, logger)
+	body, err := sendRESTRequest(http.MethodPost, url+"/api/v1/persons", requestJSON, logger, username, password)
 	if err != nil {
 		logger.Warn("Error calling AddPerson", zap.Error(err))
 		return
@@ -32,7 +39,7 @@ func AddPersonHandler(url string, name string, surname string, age int, email st
 }
 
 func GetPersonHandler(url string, id int, logger *zap.Logger) {
-	body, err := sendRESTRequest(http.MethodGet, fmt.Sprintf("%s/api/v1/person/%d", url, id), nil, logger)
+	body, err := sendRESTRequest(http.MethodGet, fmt.Sprintf("%s/api/v1/person/%d", url, id), nil, logger, "","")
 	if err != nil {
 		logger.Warn("Error calling GetPerson", zap.Error(err))
 		return
@@ -55,7 +62,7 @@ func GetPersonHandler(url string, id int, logger *zap.Logger) {
 }
 
 func GetAllPersonsHandler(url string, logger *zap.Logger) {
-	body, err := sendRESTRequest(http.MethodGet, url+"/api/v1/persons/list", nil, logger)
+	body, err := sendRESTRequest(http.MethodGet, url+"/api/v1/persons/list", nil, logger, "","")
 	if err != nil {
 		logger.Warn("Error calling GetAllPersons", zap.Error(err))
 		return
@@ -85,7 +92,7 @@ func UpdatePersonHandler(url string, id int, name string, surname string, age in
 		logger.Fatal("Error marshaling request", zap.Error(err))
 		return
 	}
-	body, err := sendRESTRequest(http.MethodPut, fmt.Sprintf("%s/api/v1/person/%d", url, id), requestJSON, logger)
+	body, err := sendRESTRequest(http.MethodPut, fmt.Sprintf("%s/api/v1/person/%d", url, id), requestJSON, logger, username, password)
 	if err != nil {
 		logger.Warn("Error calling UpdatePerson", zap.Error(err))
 		return
@@ -107,7 +114,7 @@ func UpdatePersonHandler(url string, id int, name string, surname string, age in
 func DeletePersonHandler(url string, id int, logger *zap.Logger) {
 	body, err := sendRESTRequest(http.MethodDelete,
 		fmt.Sprintf("%s/api/v1/person/%d", url, id), nil,
-		logger)
+		logger, username, password)
 
 	if err != nil {
 		logger.Warn("Error calling DeletePerson", zap.Error(err))
@@ -126,9 +133,10 @@ func DeletePersonHandler(url string, id int, logger *zap.Logger) {
 		fmt.Printf("Failed to delete person: %s\n", response.Message)
 	}
 }
+
 func SearchPersonsHandler(url string, query string, logger *zap.Logger) {
 	searchURL := fmt.Sprintf("%s/api/v1/persons?query=%s", url, query)
-	body, err := sendRESTRequest(http.MethodGet, searchURL, nil, logger)
+	body, err := sendRESTRequest(http.MethodGet, searchURL, nil, logger, "","")
 	if err != nil {
 		logger.Warn("Error calling SearchPersons", zap.Error(err))
 		return
@@ -167,7 +175,7 @@ func SearchPersonsHandler(url string, query string, logger *zap.Logger) {
 	}
 }
 
-func sendRESTRequest(method string, url string, body []byte, logger *zap.Logger) ([]byte, error) {
+func sendRESTRequest(method string, url string, body []byte, logger *zap.Logger, username string, password string) ([]byte, error) {
 	reqBody := bytes.NewBuffer(body)
 	req, err := http.NewRequest(method, url, reqBody)
 	if err != nil {
@@ -175,6 +183,11 @@ func sendRESTRequest(method string, url string, body []byte, logger *zap.Logger)
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if username != "" && password != "" {
+		auth := fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", username, password))))
+		req.Header.Set("Authorization", auth)
+	}
+	fmt.Println("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", req)	
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
